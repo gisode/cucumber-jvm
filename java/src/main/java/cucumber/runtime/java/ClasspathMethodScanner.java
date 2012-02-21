@@ -3,50 +3,52 @@ package cucumber.runtime.java;
 import cucumber.annotation.After;
 import cucumber.annotation.Before;
 import cucumber.annotation.Order;
-import cucumber.resources.Resources;
+import cucumber.io.ClasspathResourceLoader;
+import cucumber.runtime.Utils;
 
-import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
 import java.util.Collection;
+import java.util.List;
 
 public class ClasspathMethodScanner {
-    public void scan(JavaBackend javaBackend, String packagePrefix) {
-        try {
-            Collection<Class<? extends Annotation>> cucumberAnnotations = findCucumberAnnotationClasses();
-            for (Class<?> clazz : Resources.getInstantiableClasses(packagePrefix)) {
-                try {
-                    if (Modifier.isPublic(clazz.getModifiers()) && !Modifier.isAbstract(clazz.getModifiers())) {
-                        // TODO: How do we know what other dependendencies to add?
+
+    private final ClasspathResourceLoader resourceLoader;
+
+    public ClasspathMethodScanner(ClasspathResourceLoader resourceLoader) {
+        this.resourceLoader = resourceLoader;
+    }
+
+    public void scan(JavaBackend javaBackend, List<String> gluePaths) {
+        Collection<Class<? extends Annotation>> cucumberAnnotationClasses = findCucumberAnnotationClasses();
+        for (String gluePath : gluePaths) {
+            String packageName = gluePath.replace('/', '.').replace('\\', '.'); // Sometimes the gluePath will be a path, not a package
+            for (Class<?> glueCodeClass : resourceLoader.getDescendants(Object.class, packageName)) {
+                while (glueCodeClass != null && glueCodeClass != Object.class && !Utils.isInstantiable(glueCodeClass)) {
+                    // those can't be instantiated without container class present.
+                    glueCodeClass = glueCodeClass.getSuperclass();
+                }
+                if(glueCodeClass != null) {
+                    for (Method method : glueCodeClass.getMethods()) {
+                        scan(glueCodeClass, method, cucumberAnnotationClasses, javaBackend);
                     }
-                    Method[] methods = clazz.getMethods();
-                    for (Method method : methods) {
-                        if (Modifier.isPublic(method.getModifiers())) {
-                            scan(method, cucumberAnnotations, javaBackend);
-                        }
-                    }
-                } catch (NoClassDefFoundError ignore) {
-                } catch (SecurityException ignore) {
                 }
             }
-        } catch (IOException e) {
-            throw new RuntimeException(e);
         }
     }
 
-    private Collection<Class<? extends Annotation>> findCucumberAnnotationClasses() throws IOException {
-        return Resources.getInstantiableSubclassesOf(Annotation.class, "cucumber.annotation");
+    private Collection<Class<? extends Annotation>> findCucumberAnnotationClasses() {
+        return resourceLoader.getAnnotations("cucumber.annotation");
     }
 
-    private void scan(Method method, Collection<Class<? extends Annotation>> cucumberAnnotationClasses, JavaBackend javaBackend) {
+    private void scan(Class<?> glueCodeClass, Method method, Collection<Class<? extends Annotation>> cucumberAnnotationClasses, JavaBackend javaBackend) {
         for (Class<? extends Annotation> cucumberAnnotationClass : cucumberAnnotationClasses) {
             Annotation annotation = method.getAnnotation(cucumberAnnotationClass);
             if (annotation != null && !annotation.annotationType().equals(Order.class)) {
                 if (isHookAnnotation(annotation)) {
-                    javaBackend.addHook(annotation, method);
-                } else if(isStepdefAnnotation(annotation)) {
-                    javaBackend.addStepDefinition(annotation, method);
+                    javaBackend.addHook(annotation, glueCodeClass, method);
+                } else if (isStepdefAnnotation(annotation)) {
+                    javaBackend.addStepDefinition(annotation, glueCodeClass, method);
                 }
             }
         }

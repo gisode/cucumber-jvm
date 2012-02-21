@@ -1,5 +1,6 @@
 package cucumber.table;
 
+import gherkin.formatter.PrettyFormatter;
 import gherkin.formatter.model.DataTableRow;
 import gherkin.formatter.model.Row;
 
@@ -29,12 +30,16 @@ public class DataTable {
     }
 
     public <T> List<T> asList(Type listType) {
-        return tableConverter.convert(listType, gherkinRows.get(0).getCells(), attributeValues());
+        return tableConverter.toList(listType, this);
     }
 
-    private List<List<String>> attributeValues() {
+    List<String> topCells() {
+        return gherkinRows.get(0).getCells();
+    }
+
+    List<List<String>> cells(int firstRow) {
         List<List<String>> attributeValues = new ArrayList<List<String>>();
-        List<DataTableRow> valueRows = gherkinRows.subList(1, gherkinRows.size());
+        List<DataTableRow> valueRows = gherkinRows.subList(firstRow, gherkinRows.size());
         for (Row valueRow : valueRows) {
             attributeValues.add(toStrings(valueRow));
         }
@@ -49,12 +54,25 @@ public class DataTable {
         return strings;
     }
 
-    public void diff(DataTable other) {
+    public void diff(List<List<String>> other) {
+        diff(tableConverter.toTable(other));
+    }
+
+    private void diff(DataTable other) {
         new TableDiffer(this, other).calculateDiffs();
     }
 
     public List<DataTableRow> getGherkinRows() {
         return gherkinRows;
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder result = new StringBuilder();
+        PrettyFormatter pf = new PrettyFormatter(result, true, false);
+        pf.table(getGherkinRows());
+        pf.eof();
+        return result.toString();
     }
 
     List<DiffableRow> diffableRows() {

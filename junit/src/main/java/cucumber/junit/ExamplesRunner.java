@@ -9,18 +9,19 @@ import org.junit.runners.model.InitializationError;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 class ExamplesRunner extends Suite {
     private final CucumberExamples cucumberExamples;
 
-    protected ExamplesRunner(Runtime runtime, List<String> gluePaths, CucumberExamples cucumberExamples, JUnitReporter jUnitReporter) throws InitializationError {
-        super(null, new ArrayList<Runner>());
+    protected ExamplesRunner(Runtime runtime, CucumberExamples cucumberExamples, JUnitReporter jUnitReporter) throws InitializationError {
+        super(ExamplesRunner.class, new ArrayList<Runner>());
         this.cucumberExamples = cucumberExamples;
 
         List<CucumberScenario> exampleScenarios = cucumberExamples.createExampleScenarios();
         for (CucumberScenario scenario : exampleScenarios) {
             try {
-                ExecutionUnitRunner exampleScenarioRunner = new ExecutionUnitRunner(runtime, gluePaths, scenario, jUnitReporter);
+                ExecutionUnitRunner exampleScenarioRunner = new ExecutionUnitRunner(runtime, scenario, jUnitReporter);
                 getChildren().add(exampleScenarioRunner);
             } catch (InitializationError initializationError) {
                 initializationError.printStackTrace();

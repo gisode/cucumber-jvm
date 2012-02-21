@@ -1,11 +1,8 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
-                      http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <groupId>info.cukes</groupId>
     <artifactId>cucumber-jvm</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>1.0.0.RC17-SNAPSHOT</version>
     <packaging>pom</packaging>
     <name>Cucumber-JVM</name>
     <url>http://cukes.info/</url>
@@ -16,7 +13,10 @@
         <version>6</version>
     </parent>
     <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <outputDirectory>${project.build.directory}</outputDirectory>
+        <gherkin.version>2.9.0</gherkin.version>
+        <groovy.version>2.0.0-beta-2</groovy.version>
     </properties>
     <licenses>
         <license>
@@ -65,8 +65,23 @@
             </dependency>
             <dependency>
                 <groupId>info.cukes</groupId>
+                <artifactId>cucumber-scala</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>info.cukes</groupId>
+                <artifactId>cucumber-html</artifactId>
+                <version>0.2.1</version>
+            </dependency>
+            <dependency>
+                <groupId>info.cukes</groupId>
                 <artifactId>gherkin</artifactId>
-                <version>2.6.4</version>
+                <version>${gherkin.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.codehaus.groovy</groupId>
+                <artifactId>groovy-all</artifactId>
+                <version>${groovy.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.googlecode.java-diff-utils</groupId>
@@ -76,7 +91,7 @@
             <dependency>
                 <groupId>com.thoughtworks.xstream</groupId>
                 <artifactId>xstream</artifactId>
-                <version>1.4.1</version>
+                <version>1.4.2</version>
                 <exclusions>
                     <exclusion>
                         <groupId>xmlpull</groupId>
@@ -96,17 +111,12 @@
             <dependency>
                 <groupId>org.springframework</groupId>
                 <artifactId>spring-tx</artifactId>
-                <version>3.0.6.RELEASE</version>
+                <version>3.1.0.RELEASE</version>
             </dependency>
             <dependency>
                 <groupId>com.google.inject</groupId>
                 <artifactId>guice</artifactId>
                 <version>3.0</version>
-            </dependency>
-            <dependency>
-                <groupId>org.codehaus.groovy</groupId>
-                <artifactId>groovy-all</artifactId>
-                <version>1.9.0-beta-4</version>
             </dependency>
             <dependency>
                 <groupId>org.scala-lang</groupId>
@@ -121,7 +131,7 @@
             <dependency>
                 <groupId>org.clojure</groupId>
                 <artifactId>clojure</artifactId>
-                <version>1.4.0-alpha2</version>
+                <version>1.4.0-beta1</version>
             </dependency>
             <dependency>
                 <groupId>rhino</groupId>
@@ -151,57 +161,43 @@
             <dependency>
                 <groupId>org.mockito</groupId>
                 <artifactId>mockito-all</artifactId>
-                <version>1.9.0-rc1</version>
-            </dependency>
-            <dependency>
-                <groupId>com.google.code.gson</groupId>
-                <artifactId>gson</artifactId>
-                <version>1.7.2</version>
+                <version>1.9.0</version>
+                <scope>test</scope>
             </dependency>
             <dependency>
                 <groupId>org.seleniumhq.selenium</groupId>
                 <artifactId>selenium-chrome-driver</artifactId>
-                <version>2.12.0</version>
+                <version>2.19.0</version>
             </dependency>
             <dependency>
                 <groupId>org.seleniumhq.selenium</groupId>
                 <artifactId>selenium-server</artifactId>
-                <version>2.12.0</version>
+                <version>2.19.0</version>
             </dependency>
             <dependency>
                 <groupId>org.webbitserver</groupId>
                 <artifactId>webbit</artifactId>
-                <version>0.2.14</version>
-            </dependency>
-            <dependency>
-                <groupId>commons-lang</groupId>
-                <artifactId>commons-lang</artifactId>
-                <version>2.4</version>
-            </dependency>
-            <dependency>
-                <groupId>asm</groupId>
-                <artifactId>asm</artifactId>
-                <version>3.3</version>
-            </dependency>
-            <dependency>
-                <groupId>cglib</groupId>
-                <artifactId>cglib-nodep</artifactId>
-                <version>2.1_3</version>
+                <version>0.4.0</version>
             </dependency>
             <dependency>
                 <groupId>org.jruby</groupId>
                 <artifactId>jruby-complete</artifactId>
-                <version>1.6.5</version>
+                <version>1.6.6</version>
             </dependency>
             <dependency>
                 <groupId>org.jboss.weld.se</groupId>
                 <artifactId>weld-se</artifactId>
-                <version>1.1.0.Final</version>
+                <version>2.0.0.Alpha1</version>
             </dependency>
             <dependency>
                 <groupId>javax.enterprise</groupId>
                 <artifactId>cdi-api</artifactId>
-                <version>1.0-SP1</version>
+                <version>1.1.EDR1.2</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.openejb</groupId>
+                <artifactId>openejb-core</artifactId>
+                <version>4.0.0-beta-2</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
@@ -215,11 +211,28 @@
             <id>jboss.org</id>
             <url>https://repository.jboss.org/nexus/content/groups/public-jboss</url>
         </repository>
+        <repository>
+            <id>sonatype.org</id>
+            <url>https://oss.sonatype.org/content/repositories/releases</url>
+        </repository>
     </repositories>
+
+    <!--
+     this adds a repository that the plugins will use for dependency resolution
+     Any items that we use in a plugin's <dependency> phase can be resolved from here, as well as central
+    -->
+    <pluginRepositories>
+        <pluginRepository>
+            <id>sonatype.org</id>
+            <url>https://oss.sonatype.org/content/repositories/releases</url>
+        </pluginRepository>
+    </pluginRepositories>
 
     <modules>
         <module>core</module>
         <module>junit</module>
+        <module>jruby</module>
+        <module>jython</module>
         <module>picocontainer</module>
         <module>spring</module>
         <module>guice</module>
@@ -229,9 +242,8 @@
         <module>rhino</module>
         <module>java</module>
         <module>clojure</module>
-        <module>jruby</module>
-        <module>jython</module>
-        <!--module>scala</module-->
+        <module>openejb</module>
+        <module>scala</module>
     </modules>
 
     <profiles>
@@ -247,44 +259,19 @@
             <modules>
                 <module>examples/java-calculator</module>
                 <module>examples/groovy-calculator</module>
-                <!--module>examples/scala-calculator</module-->
+                <module>examples/scala-calculator</module>
                 <module>examples/java-webbit-websockets-selenium</module>
             </modules>
         </profile>
 
         <profile>
-            <id>full</id>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-shade-plugin</artifactId>
-                        <version>1.4</version>
-                        <executions>
-                            <execution>
-                                <phase>package</phase>
-                                <goals>
-                                    <goal>shade</goal>
-                                </goals>
-                                <configuration>
-                                    <shadedArtifactAttached>true</shadedArtifactAttached>
-                                    <shadedClassifierName>full</shadedClassifierName>
-                                    <transformers>
-                                        <transformer
-                                                implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                            <mainClass>cucumber.cli.Main</mainClass>
-                                        </transformer>
-                                    </transformers>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-
-        <profile>
             <id>release-sign-artifacts</id>
+            <modules>
+                <module>examples/java-calculator</module>
+                <module>examples/groovy-calculator</module>
+                <module>examples/scala-calculator</module>
+                <module>examples/java-webbit-websockets-selenium</module>
+            </modules>
             <activation>
                 <property>
                     <name>performRelease</name>
@@ -293,6 +280,14 @@
             </activation>
             <build>
                 <plugins>
+                    <plugin>
+                        <artifactId>maven-release-plugin</artifactId>
+                        <version>2.2.1</version>
+                        <configuration>
+                            <tagNameFormat>v@{project.version}</tagNameFormat>
+                        </configuration>
+                    </plugin>
+
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-gpg-plugin</artifactId>
@@ -310,6 +305,7 @@
                             </execution>
                         </executions>
                     </plugin>
+
                 </plugins>
             </build>
         </profile>
@@ -317,21 +313,53 @@
 
     <build>
         <pluginManagement>
+            <!-- To define the plugin version in your parent POM -->
             <plugins>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-compiler-plugin</artifactId>
-                    <version>2.3.2</version>
+                    <artifactId>maven-antrun-plugin</artifactId>
+                    <version>1.7</version>
+                    <dependencies>
+                        <dependency>
+                            <groupId>org.codehaus.groovy</groupId>
+                            <artifactId>groovy-all</artifactId>
+                            <version>${groovy.version}</version>
+                        </dependency>
+                        <dependency>
+                            <groupId>info.cukes</groupId>
+                            <artifactId>gherkin</artifactId>
+                            <version>${gherkin.version}</version>
+                        </dependency>
+                    </dependencies>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-shade-plugin</artifactId>
+                    <version>1.5</version>
                     <configuration>
-                        <encoding>UTF-8</encoding>
-                        <source>1.6</source>
-                        <target>1.6</target>
+                        <shadedArtifactAttached>true</shadedArtifactAttached>
+                        <shadedClassifierName>full</shadedClassifierName>
+                        <transformers>
+                            <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                <mainClass>cucumber.cli.Main</mainClass>
+                            </transformer>
+                        </transformers>
                     </configuration>
                 </plugin>
             </plugins>
         </pluginManagement>
 
         <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>2.3.2</version>
+                <configuration>
+                    <encoding>UTF-8</encoding>
+                    <source>1.6</source>
+                    <target>1.6</target>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-source-plugin</artifactId>

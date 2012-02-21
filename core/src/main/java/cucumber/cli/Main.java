@@ -1,30 +1,41 @@
 package cucumber.cli;
 
 import cucumber.formatter.FormatterFactory;
+import cucumber.formatter.MultiFormatter;
+import cucumber.io.FileResourceLoader;
 import cucumber.runtime.Runtime;
 import cucumber.runtime.snippets.SummaryPrinter;
 import gherkin.formatter.Formatter;
+import gherkin.formatter.Reporter;
 
 import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.ResourceBundle;
+import java.util.Stack;
 
 import static java.util.Arrays.asList;
 
 public class Main {
-    private static final String USAGE = "HELP";
-    private static final String VERSION = "1.0.0"; // TODO: get this from a file
+    private static final String USAGE = "TODO - Write the help";
+    static final String VERSION = ResourceBundle.getBundle("cucumber.version").getString("cucumber-jvm.version");
 
-    public static void main(String[] argv) throws IOException {
-        List<String> filesOrDirs = new ArrayList<String>();
+    public static void main(String[] argv) throws Throwable {
+        run(argv, Thread.currentThread().getContextClassLoader(), new DefaultRuntimeFactory());
+    }
+
+    public static void run(String[] argv, ClassLoader classLoader, RuntimeFactory runtimeFactory) throws IOException {
+        List<String> featurePaths = new ArrayList<String>();
         List<String> gluePaths = new ArrayList<String>();
         List<Object> filters = new ArrayList<Object>();
-        String format = "progress";
+        Stack<String> format = new Stack<String>();
         List<String> args = new ArrayList<String>(asList(argv));
         String dotCucumber = null;
         boolean isDryRun = false;
+
+        FormatterFactory formatterFactory = new FormatterFactory(classLoader);
+        MultiFormatter multiFormatter = new MultiFormatter(classLoader);
 
         while (!args.isEmpty()) {
             String arg = args.remove(0);
@@ -41,41 +52,54 @@ public class Main {
             } else if (arg.equals("--tags") || arg.equals("-t")) {
                 filters.add(args.remove(0));
             } else if (arg.equals("--format") || arg.equals("-f")) {
-                format = args.remove(0);
-            } else if (arg.equals("--dotcucumber") || arg.equals("-d")) {
+                format.push(args.remove(0));
+            } else if (arg.equals("--out") || arg.equals("-o")) {
+                File out = new File(args.remove(0));
+                Formatter formatter = formatterFactory.createFormatter(format.pop(), out);
+                multiFormatter.add(formatter);
+            } else if (arg.equals("--dotcucumber")) {
                 dotCucumber = args.remove(0);
             } else if (arg.equals("--dry-run") || arg.equals("-d")) {
                 isDryRun = true;
             } else {
-                filesOrDirs.add(arg);
+                // TODO: Use PathWithLines and add line filter if any
+                featurePaths.add(arg);
             }
         }
+
+        //Grab any formatters left on the stack and create a multiformatter for them to stdout
+        // yes this will be ugly, but maybe people are crazy
+        if (!format.isEmpty()) {
+            multiFormatter.add(formatterFactory.createFormatter(format.pop(), System.out));
+        } else {
+            //Default formatter is progress unless otherwise specified or if they have piped all their other formatters
+            // to an output thing
+            multiFormatter.add(formatterFactory.createFormatter("progress", System.out));
+        }
+
         if (gluePaths.isEmpty()) {
             System.out.println("Missing option: --glue");
             System.exit(1);
         }
 
-        Runtime runtime = new Runtime(gluePaths, isDryRun);
+        Runtime runtime = runtimeFactory.createRuntime(new FileResourceLoader(), gluePaths, classLoader, isDryRun);
 
         if (dotCucumber != null) {
-            writeDotCucumber(filesOrDirs, dotCucumber, runtime);
+            writeDotCucumber(featurePaths, dotCucumber, runtime);
         }
-        run(filesOrDirs, filters, format, runtime);
+        Formatter formatter = multiFormatter.formatterProxy();
+        Reporter reporter = multiFormatter.reporterProxy();
+        runtime.run(featurePaths, filters, formatter, reporter);
+        formatter.done();
         printSummary(runtime);
+        formatter.close();
         System.exit(runtime.exitStatus());
     }
 
-    private static void writeDotCucumber(List<String> filesOrDirs, String dotCucumberPath, Runtime runtime) throws IOException {
+    private static void writeDotCucumber(List<String> featurePaths, String dotCucumberPath, Runtime runtime) throws IOException {
         File dotCucumber = new File(dotCucumberPath);
         dotCucumber.mkdirs();
-        runtime.writeMeta(filesOrDirs, dotCucumber);
-    }
-
-    private static void run(List<String> filesOrDirs, List<Object> filters, String format, Runtime runtime) {
-        FormatterFactory formatterFactory = new FormatterFactory();
-        Formatter formatter = formatterFactory.createFormatter(format, System.out);
-        runtime.run(filesOrDirs, filters, formatter, formatterFactory.reporter(formatter));
-        formatter.close();
+        runtime.writeStepdefsJson(featurePaths, dotCucumber);
     }
 
     private static void printSummary(Runtime runtime) {

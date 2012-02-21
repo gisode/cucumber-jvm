@@ -1,14 +1,11 @@
 package cucumber
 package runtime
 
-import cucumber.table.Table
+import _root_.gherkin.formatter.model.Step
+import _root_.gherkin.I18n
 
-import gherkin.formatter.model.Step
-import gherkin.formatter.model.Row
+import _root_.scala.collection.JavaConversions._
 
-import collection.JavaConverters._
-
-import _root_.java.util.Locale
 import _root_.java.util.regex.Pattern
 
 class ScalaStepDefinition(frame:StackTraceElement, name:String, pattern:String, parameterTypes:List[Class[_]], f:List[Any] => Any) extends StepDefinition {
@@ -22,9 +19,9 @@ class ScalaStepDefinition(frame:StackTraceElement, name:String, pattern:String, 
   def getLocation = frame.getFileName + ":" + frame.getLineNumber
 
   // capture type transformations at compile time instead
-  def getParameterTypes = Array.fill(parameterTypes.size)(classOf[String])
+  def getParameterTypes = Array.fill(parameterTypes.size)(new ParameterType(classOf[String], null)).toList
 
-  def execute(args: Array[AnyRef]) { f(args.toList) }
+  def execute(i18n: I18n, args: Array[AnyRef]) { f(args.toList) }
 
   def isDefinedAt(stackTraceElement: StackTraceElement) = stackTraceElement == frame
 

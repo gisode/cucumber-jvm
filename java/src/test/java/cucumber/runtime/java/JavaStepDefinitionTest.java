@@ -1,35 +1,43 @@
 package cucumber.runtime.java;
 
 import cucumber.annotation.en.Given;
+import cucumber.io.ClasspathResourceLoader;
 import cucumber.runtime.AmbiguousStepDefinitionsException;
+import cucumber.runtime.Glue;
 import cucumber.runtime.Runtime;
-import cucumber.runtime.World;
+import gherkin.I18n;
 import gherkin.formatter.Reporter;
 import gherkin.formatter.model.Comment;
+import gherkin.formatter.model.Result;
 import gherkin.formatter.model.Step;
+import gherkin.formatter.model.Tag;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 
 import java.lang.reflect.Method;
-import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
+import java.util.Set;
 
 import static java.util.Arrays.asList;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 public class JavaStepDefinitionTest {
     private static final List<Comment> NO_COMMENTS = Collections.emptyList();
     private static final List<String> NO_PATHS = Collections.emptyList();
-    private static final Method FOO;
-    private static final Method BAR;
+    private static final Method THREE_DISABLED_MICE;
+    private static final Method THREE_BLIND_ANIMALS;
+    private static final I18n ENGLISH = new I18n("en");
 
     static {
         try {
-            FOO = Defs.class.getMethod("foo");
-            BAR = Defs.class.getMethod("bar");
+            THREE_DISABLED_MICE = Defs.class.getMethod("threeDisabledMice", String.class);
+            THREE_BLIND_ANIMALS = Defs.class.getMethod("threeBlindAnimals", String.class);
         } catch (NoSuchMethodException e) {
             throw new InternalError("dang");
         }
@@ -37,28 +45,42 @@ public class JavaStepDefinitionTest {
 
     private final Defs defs = new Defs();
     private final JavaBackend backend = new JavaBackend(new SingletonFactory(defs));
-    private final Runtime runtime = new Runtime(NO_PATHS, asList(backend), false);
-    private final World fooWorld = new World(runtime, asList("@foo"));
+    private final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+    private final Runtime runtime = new Runtime(new ClasspathResourceLoader(classLoader), NO_PATHS, classLoader, asList(backend), false);
+    private final Glue glue = runtime.getGlue();
 
-    @Test(expected = AmbiguousStepDefinitionsException.class)
-    public void throws_ambiguous_when_two_matches_are_found() {
-        backend.buildWorld(new ArrayList<String>(), fooWorld);
-        backend.addStepDefinition(FOO.getAnnotation(Given.class), FOO);
-        backend.addStepDefinition(BAR.getAnnotation(Given.class), BAR);
-
-        Reporter reporter = mock(Reporter.class);
-        fooWorld.prepare(NO_PATHS);
-        fooWorld.runStep("uri", new Step(NO_COMMENTS, "Given ", "pattern", 1, null, null), reporter, Locale.US);
+    @org.junit.Before
+    public void loadNoGlue() {
+        backend.loadGlue(glue, Collections.<String>emptyList());
     }
 
     @Test
-    public void does_not_throw_ambiguous_when_nothing_is_ambiguous() {
-        backend.buildWorld(new ArrayList<String>(), fooWorld);
-        backend.addStepDefinition(FOO.getAnnotation(Given.class), FOO);
+    public void throws_ambiguous_when_two_matches_are_found() throws Throwable {
+        backend.addStepDefinition(THREE_DISABLED_MICE.getAnnotation(Given.class), Defs.class, THREE_DISABLED_MICE);
+        backend.addStepDefinition(THREE_BLIND_ANIMALS.getAnnotation(Given.class), Defs.class, THREE_BLIND_ANIMALS);
 
         Reporter reporter = mock(Reporter.class);
-        fooWorld.prepare(NO_PATHS);
-        fooWorld.runStep("uri", new Step(NO_COMMENTS, "Given ", "pattern", 1, null, null), reporter, Locale.US);
+        runtime.buildBackendWorlds(reporter);
+        Tag tag = new Tag("@foo", 0);
+        runtime.runBeforeHooks(reporter, asSet(tag));
+        runtime.runStep("uri", new Step(NO_COMMENTS, "Given ", "three blind mice", 1, null, null), reporter, ENGLISH);
+
+        ArgumentCaptor<Result> result = ArgumentCaptor.forClass(Result.class);
+        verify(reporter).result(result.capture());
+        assertEquals(AmbiguousStepDefinitionsException.class, result.getValue().getError().getClass());
+    }
+
+    @Test
+    public void does_not_throw_ambiguous_when_nothing_is_ambiguous() throws Throwable {
+        backend.addStepDefinition(THREE_DISABLED_MICE.getAnnotation(Given.class), Defs.class, THREE_DISABLED_MICE);
+
+        Reporter reporter = mock(Reporter.class);
+        runtime.buildBackendWorlds(reporter);
+        Tag tag = new Tag("@foo", 0);
+        Set<Tag> tags = asSet(tag);
+        runtime.runBeforeHooks(reporter, tags);
+        Step step = new Step(NO_COMMENTS, "Given ", "three blind mice", 1, null, null);
+        runtime.runStep("uri", step, reporter, ENGLISH);
         assertTrue(defs.foo);
         assertFalse(defs.bar);
     }
@@ -67,14 +89,20 @@ public class JavaStepDefinitionTest {
         public boolean foo;
         public boolean bar;
 
-        @Given(value = "pattern")
-        public void foo() {
+        @Given(value = "three (.*) mice")
+        public void threeDisabledMice(String disability) {
             foo = true;
         }
 
-        @Given(value = "pattern")
-        public void bar() {
+        @Given(value = "three blind (.*)")
+        public void threeBlindAnimals(String animals) {
             bar = true;
         }
+    }
+
+    private <T> Set<T> asSet(T... items) {
+        Set<T> set = new HashSet<T>();
+        set.addAll(asList(items));
+        return set;
     }
 }

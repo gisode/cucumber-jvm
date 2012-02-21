@@ -3,13 +3,13 @@ package cucumber.runtime.ioke;
 import cucumber.runtime.CucumberException;
 import cucumber.runtime.ParameterType;
 import cucumber.runtime.StepDefinition;
+import gherkin.I18n;
 import gherkin.formatter.Argument;
 import gherkin.formatter.model.Step;
 import ioke.lang.IokeObject;
 import ioke.lang.Runtime;
 import ioke.lang.exceptions.ControlFlow;
 
-import java.util.Collection;
 import java.util.List;
 
 import static cucumber.runtime.Utils.listOf;
@@ -29,7 +29,8 @@ public class IokeStepDefinition implements StepDefinition {
 
     public String getPattern() {
         try {
-            return (String) backend.invoke(iokeStepDefObject, "regexp_source");
+            IokeObject regexp = (IokeObject) backend.invoke(iokeStepDefObject, "regexp_pattern");
+            return regexp.toString();
         } catch (ControlFlow controlFlow) {
             throw new CucumberException("Couldn't get pattern", controlFlow);
         }
@@ -64,7 +65,7 @@ public class IokeStepDefinition implements StepDefinition {
         }
     }
 
-    public void execute(Object[] args) throws Throwable {
+    public void execute(I18n i18n, Object[] args) throws Throwable {
         backend.execute(iokeStepDefObject, args);
     }
 

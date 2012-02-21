@@ -1,39 +1,66 @@
 package cucumber.runtime.jython;
 
-import cucumber.resources.Consumer;
-import cucumber.resources.Resource;
-import cucumber.resources.Resources;
+import cucumber.io.Resource;
+import cucumber.io.ResourceLoader;
 import cucumber.runtime.Backend;
-import cucumber.runtime.World;
+import cucumber.runtime.CucumberException;
+import cucumber.runtime.Glue;
+import cucumber.runtime.UnreportedStepExecutor;
+import cucumber.runtime.snippets.SnippetGenerator;
 import gherkin.formatter.model.Step;
 import org.python.core.PyInstance;
 import org.python.core.PyObject;
 import org.python.core.PyString;
 import org.python.util.PythonInterpreter;
 
+import java.io.IOException;
 import java.util.List;
 
 public class JythonBackend implements Backend {
     private static final String DSL = "/cucumber/runtime/jython/dsl.py";
-    private final PythonInterpreter jython = new PythonInterpreter();
+    private final SnippetGenerator snippetGenerator = new SnippetGenerator(new JythonSnippet());
+    private final ResourceLoader resourceLoader;
+    private final PythonInterpreter jython;
     private PyObject pyWorld;
-    private World world;
+    private Glue glue;
 
-    public JythonBackend() {
+    public JythonBackend(ResourceLoader resourceLoader, PythonInterpreter jython) {
+        this.resourceLoader = resourceLoader;
+        this.jython = jython;
         jython.set("backend", this);
         jython.execfile(getClass().getResourceAsStream(DSL), DSL);
     }
 
+    public JythonBackend(ResourceLoader resourceLoader) {
+        this(resourceLoader, new PythonInterpreter());
+    }
+
     @Override
-    public void buildWorld(List<String> gluePaths, World world) {
-        this.pyWorld = jython.eval("World()");
-        this.world = world;
+    public void loadGlue(Glue glue, List<String> gluePaths) {
+        this.glue = glue;
+
         for (String gluePath : gluePaths) {
-            Resources.scan(gluePath.replace('.', '/'), ".py", new Consumer() {
-                public void consume(Resource resource) {
-                    jython.execfile(resource.getInputStream(), resource.getPath());
-                }
-            });
+            for (Resource resource : resourceLoader.resources(gluePath, ".py")) {
+                execFile(resource);
+            }
+        }
+    }
+
+    @Override
+    public void setUnreportedStepExecutor(UnreportedStepExecutor executor) {
+        //Not used yet
+    }
+
+    @Override
+    public void buildWorld() {
+        this.pyWorld = jython.eval("World()");
+    }
+
+    private void execFile(Resource resource) {
+        try {
+            jython.execfile(resource.getInputStream(), resource.getPath());
+        } catch (IOException e) {
+            throw new CucumberException(e);
         }
     }
 
@@ -43,11 +70,11 @@ public class JythonBackend implements Backend {
 
     @Override
     public String getSnippet(Step step) {
-        return new JythonSnippetGenerator(step).getSnippet();
+        return snippetGenerator.getSnippet(step);
     }
 
     public void registerStepdef(PyInstance stepdef, int arity) {
-        world.addStepDefinition(new JythonStepDefinition(this, stepdef, arity));
+        glue.addStepDefinition(new JythonStepDefinition(this, stepdef, arity));
     }
 
     public void execute(PyInstance stepdef, Object[] args) {

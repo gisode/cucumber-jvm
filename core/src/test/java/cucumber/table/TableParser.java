@@ -1,5 +1,7 @@
 package cucumber.table;
 
+import cucumber.runtime.converters.LocalizedXStreams;
+import gherkin.I18n;
 import gherkin.formatter.model.Comment;
 import gherkin.formatter.model.DataTableRow;
 import gherkin.lexer.Lexer;
@@ -71,6 +73,7 @@ public class TableParser {
             }
         });
         l.scan(source);
-        return new DataTable(rows, null);
+        ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+        return new DataTable(rows, new TableConverter(new LocalizedXStreams(classLoader).get(new I18n("en"))));
     }
 }

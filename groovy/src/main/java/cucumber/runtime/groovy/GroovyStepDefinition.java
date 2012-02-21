@@ -3,12 +3,12 @@ package cucumber.runtime.groovy;
 import cucumber.runtime.JdkPatternArgumentMatcher;
 import cucumber.runtime.ParameterType;
 import cucumber.runtime.StepDefinition;
+import gherkin.I18n;
 import gherkin.formatter.Argument;
 import gherkin.formatter.model.Step;
 import groovy.lang.Closure;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.regex.Pattern;
 
@@ -44,7 +44,7 @@ public class GroovyStepDefinition implements StepDefinition {
         return result;
     }
 
-    public void execute(Object[] args) throws Throwable {
+    public void execute(I18n i18n, Object[] args) throws Throwable {
         backend.invoke(body, args);
     }
 

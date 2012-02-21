@@ -49,10 +49,9 @@ public class SpringFactoryTest {
     @Test
     public void shouldRespectCommonAnnotationsInStepDefs() {
         final ObjectFactory factory = new SpringFactory();
-        factory.addClass(AnnotationTestStepdefs.class);
+        factory.addClass(WithSpringAnnotations.class);
         factory.createInstances();
-        final AnnotationTestStepdefs stepdef = factory
-                .getInstance(AnnotationTestStepdefs.class);
+        WithSpringAnnotations stepdef = factory.getInstance(WithSpringAnnotations.class);
         factory.disposeInstances();
 
         assertNotNull(stepdef);
@@ -61,4 +60,14 @@ public class SpringFactoryTest {
         assertTrue(stepdef.isPreDestroyCalled());
     }
 
+    @Test
+    public void shouldRespectCustomPropertyPlaceholderConfigurer() {
+        final ObjectFactory factory = new SpringFactory();
+        factory.addClass(WithSpringAnnotations.class);
+        factory.createInstances();
+        WithSpringAnnotations stepdef = factory.getInstance(WithSpringAnnotations.class);
+        factory.disposeInstances();
+
+        assertEquals("property value", stepdef.getProperty());
+    }
 }

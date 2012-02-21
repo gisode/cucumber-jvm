@@ -2,8 +2,16 @@ package cucumber.formatter;
 
 import gherkin.formatter.Formatter;
 import gherkin.formatter.Reporter;
-import gherkin.formatter.model.*;
+import gherkin.formatter.model.Background;
+import gherkin.formatter.model.Examples;
+import gherkin.formatter.model.Feature;
+import gherkin.formatter.model.Match;
+import gherkin.formatter.model.Result;
+import gherkin.formatter.model.Scenario;
+import gherkin.formatter.model.ScenarioOutline;
+import gherkin.formatter.model.Step;
 
+import java.io.InputStream;
 import java.util.List;
 
 public class NullReporter implements Reporter, Formatter {
@@ -44,6 +52,10 @@ public class NullReporter implements Reporter, Formatter {
     }
 
     @Override
+    public void done() {
+    }
+
+    @Override
     public void close() {
     }
 
@@ -56,6 +68,10 @@ public class NullReporter implements Reporter, Formatter {
     }
 
     @Override
-    public void embedding(String s, byte[] bytes) {
+    public void embedding(String mimeType, InputStream data) {
+    }
+
+    @Override
+    public void write(String text) {
     }
 }

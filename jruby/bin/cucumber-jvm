@@ -1,6 +1,10 @@
-#!/usr/bin/env ruby
+#!/usr/bin/env jruby
 $:.unshift(File.dirname(__FILE__) + '/../lib') unless $:.include?(File.dirname(__FILE__) + '/../lib')
 
 require 'cucumber-jruby-full.jar'
 
-Java::CucumberCli::Main.main(ARGV)
+begin
+  Java::CucumberCli::Main.main(ARGV)
+rescue NativeException => e
+  e.cause.printStackTrace
+end

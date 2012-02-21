@@ -1,11 +1,12 @@
 package cucumber.runtime.ioke;
 
-import cucumber.resources.Consumer;
-import cucumber.resources.Resource;
-import cucumber.resources.Resources;
+import cucumber.io.Resource;
+import cucumber.io.ResourceLoader;
 import cucumber.runtime.Backend;
 import cucumber.runtime.CucumberException;
-import cucumber.runtime.World;
+import cucumber.runtime.Glue;
+import cucumber.runtime.UnreportedStepExecutor;
+import cucumber.runtime.snippets.SnippetGenerator;
 import cucumber.table.DataTable;
 import gherkin.formatter.model.Step;
 import ioke.lang.IokeObject;
@@ -18,13 +19,16 @@ import java.util.Arrays;
 import java.util.List;
 
 public class IokeBackend implements Backend {
+    private final SnippetGenerator snippetGenerator = new SnippetGenerator(new IokeSnippet());
+    private final ResourceLoader resourceLoader;
     private final Runtime ioke;
     private final List<Runtime.RescueInfo> failureRescues;
     private final List<Runtime.RescueInfo> pendingRescues;
     private String currentLocation;
-    private World world;
+    private Glue glue;
 
-    public IokeBackend() {
+    public IokeBackend(ResourceLoader resourceLoader) {
+        this.resourceLoader = resourceLoader;
         try {
             ioke = new Runtime();
             ioke.init();
@@ -38,19 +42,32 @@ public class IokeBackend implements Backend {
     }
 
     @Override
-    public void buildWorld(List<String> gluePaths, World world) {
-        this.world = world;
+    public void loadGlue(Glue glue, List<String> gluePaths) {
+        this.glue = glue;
+
         for (String gluePath : gluePaths) {
-            Resources.scan(gluePath.replace('.', '/'), ".ik", new Consumer() {
-                public void consume(Resource resource) {
-                    try {
-                        currentLocation = resource.getPath();
-                        ioke.evaluateString("use(\"" + resource.getPath() + "\")");
-                    } catch (ControlFlow controlFlow) {
-                        throw new CucumberException("Failed to load " + resource.getPath(), controlFlow);
-                    }
-                }
-            });
+            for (Resource resource : resourceLoader.resources(gluePath, ".ik")) {
+                currentLocation = resource.getPath();
+                evaluate(resource);
+            }
+        }
+    }
+
+    @Override
+    public void setUnreportedStepExecutor(UnreportedStepExecutor executor) {
+        //Not used yet
+    }
+
+    @Override
+    public void buildWorld() {
+    }
+
+    private void evaluate(Resource resource) {
+        try {
+            String path = resource.getPath().replace('\\', '/'); // Need forward paths, even when on Windows
+            ioke.evaluateString("use(\"" + path + "\")");
+        } catch (ControlFlow controlFlow) {
+            throw new CucumberException(controlFlow);
         }
     }
 
@@ -60,11 +77,11 @@ public class IokeBackend implements Backend {
 
     @Override
     public String getSnippet(Step step) {
-        return new IokeSnippetGenerator(step).getSnippet();
+        return snippetGenerator.getSnippet(step);
     }
 
     public void addStepDefinition(Object iokeStepDefObject) throws Throwable {
-        world.addStepDefinition(new IokeStepDefinition(this, ioke, (IokeObject) iokeStepDefObject, currentLocation));
+        glue.addStepDefinition(new IokeStepDefinition(this, ioke, (IokeObject) iokeStepDefObject, currentLocation));
     }
 
     private List<Runtime.RescueInfo> createRescues(String... names) throws ControlFlow {

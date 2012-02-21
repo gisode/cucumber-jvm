@@ -3,11 +3,18 @@ package cucumber.junit;
 import cucumber.runtime.PendingException;
 import gherkin.formatter.Formatter;
 import gherkin.formatter.Reporter;
-import gherkin.formatter.model.*;
+import gherkin.formatter.model.Background;
+import gherkin.formatter.model.Examples;
+import gherkin.formatter.model.Match;
+import gherkin.formatter.model.Result;
+import gherkin.formatter.model.Scenario;
+import gherkin.formatter.model.ScenarioOutline;
+import gherkin.formatter.model.Step;
 import org.junit.internal.runners.model.EachTestNotifier;
 import org.junit.runner.Description;
 import org.junit.runner.notification.RunNotifier;
 
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -19,22 +26,43 @@ class JUnitReporter implements Reporter, Formatter {
 
     private EachTestNotifier stepNotifier;
     private ExecutionUnitRunner executionUnitRunner;
-    private RunNotifier notifier;
+    private RunNotifier runNotifier;
+    private EachTestNotifier executionUnitNotifier;
 
     public JUnitReporter(Reporter reporter, Formatter formatter) {
         this.reporter = reporter;
         this.formatter = formatter;
     }
 
+    public void startExecutionUnit(ExecutionUnitRunner executionUnitRunner, RunNotifier runNotifier) {
+        this.executionUnitRunner = executionUnitRunner;
+        this.runNotifier = runNotifier;
+        this.stepNotifier = null;
+
+        executionUnitNotifier = new EachTestNotifier(runNotifier, executionUnitRunner.getDescription());
+        executionUnitNotifier.fireTestStarted();
+    }
+
+
+    public void finishExecutionUnit() {
+        executionUnitNotifier.fireTestFinished();
+    }
+
     public void match(Match match) {
         Description description = executionUnitRunner.describeChild(steps.remove(0));
-        stepNotifier = new EachTestNotifier(notifier, description);
+        stepNotifier = new EachTestNotifier(runNotifier, description);
         stepNotifier.fireTestStarted();
         reporter.match(match);
     }
 
-    public void embedding(String mimeType, byte[] data) {
+    @Override
+    public void embedding(String mimeType, InputStream data) {
         reporter.embedding(mimeType, data);
+    }
+
+    @Override
+    public void write(String text) {
+        reporter.write(text);
     }
 
     public void result(Result result) {
@@ -42,11 +70,22 @@ class JUnitReporter implements Reporter, Formatter {
         if (Result.SKIPPED == result || Result.UNDEFINED == result || error instanceof PendingException) {
             stepNotifier.fireTestIgnored();
         } else {
+            if (stepNotifier != null) {
+                if (error != null) {
+                    stepNotifier.addFailure(error);
+                }
+                stepNotifier.fireTestFinished();
+            }
             if (error != null) {
-                stepNotifier.addFailure(error);
+                executionUnitNotifier.addFailure(error);
             }
         }
-        stepNotifier.fireTestFinished();
+        if(steps.isEmpty()) {
+            // We have run all of our steps. Set the stepNotifier to null so that
+            // if an error occurs in an After block, it's reported against the scenario
+            // instead (via executionUnitNotifier).
+            stepNotifier = null;
+        }
         reporter.result(result);
     }
 
@@ -97,20 +136,12 @@ class JUnitReporter implements Reporter, Formatter {
     }
 
     @Override
+    public void done() {
+        formatter.done();
+    }
+
+    @Override
     public void close() {
         formatter.close();
-    }
-
-    public void setStepParentRunner(ExecutionUnitRunner executionUnitRunner, RunNotifier notifier) {
-        this.executionUnitRunner = executionUnitRunner;
-        this.notifier = notifier;
-    }
-
-    public Formatter getFormatter() {
-        return formatter;
-    }
-
-    public Reporter getReporter() {
-        return reporter;
     }
 }

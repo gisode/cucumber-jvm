@@ -3,19 +3,25 @@ package cucumber.runtime.converters;
 import com.thoughtworks.xstream.XStream;
 import com.thoughtworks.xstream.converters.SingleValueConverter;
 import com.thoughtworks.xstream.core.DefaultConverterLookup;
+import gherkin.I18n;
 
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 
 public class LocalizedXStreams {
-    private final Map<Locale, XStream> xStreams = new HashMap<Locale, XStream>();
+    private final Map<I18n, XStream> xStreams = new HashMap<I18n, XStream>();
+    private final ClassLoader classLoader;
 
-    public XStream get(Locale locale) {
-        XStream xStream = xStreams.get(locale);
+    public LocalizedXStreams(ClassLoader classLoader) {
+        this.classLoader = classLoader;
+    }
+
+    public XStream get(I18n i18n) {
+        XStream xStream = xStreams.get(i18n);
         if (xStream == null) {
-            xStream = newXStream(locale);
-            xStreams.put(locale, xStream);
+            xStream = newXStream(i18n.getLocale());
+            xStreams.put(i18n, xStream);
         }
         return xStream;
     }
@@ -24,7 +30,7 @@ public class LocalizedXStreams {
         DefaultConverterLookup lookup = new DefaultConverterLookup();
 
         // XStream's registers all the default converters.
-        XStream xStream = new XStream(null, null, Thread.currentThread().getContextClassLoader(), null, lookup, lookup);
+        XStream xStream = new XStream(null, null, classLoader, null, lookup, lookup);
         xStream.autodetectAnnotations(true);
 
         // Override with our own Locale-aware converters.

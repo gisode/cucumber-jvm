@@ -1,21 +1,7 @@
 require 'cucumber/rake/task'
 
-desc "Generate code"
-task :generate do
-  Dir['*/Rakefile'].each do |rakefile|
-    Dir.chdir(File.dirname(rakefile)) do
-      if ENV['SKIP_BUNDLER'].to_s == 'true'
-        puts `rake generate`
-      else
-        require 'bundler/setup'
-        puts `bundle exec rake generate`
-      end
-    end
-  end
+Cucumber::Rake::Task.new(:tck_tests) do |t|
+  t.cucumber_opts = '-r java/src/test/resources/cucumber-tck -r cucumber-tck cucumber-tck'
 end
 
-Cucumber::Rake::Task.new(:picocontainer) do |t|
-  t.cucumber_opts = '-r java/src/test/resources/cucumber-features -r cucumber-features cucumber-features'
-end
-
-task :default => :picocontainer
+task :default => :tck_tests

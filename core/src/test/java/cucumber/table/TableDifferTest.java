@@ -1,55 +1,59 @@
 package cucumber.table;
 
-import gherkin.formatter.PrettyFormatter;
 import org.junit.Test;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import static java.util.Arrays.asList;
 import static junit.framework.Assert.assertEquals;
 
 public class TableDifferTest {
-    private static final String EOL = System.getProperty("line.separator");
 
     private DataTable table() {
-        String source =
-                "| Aslak | aslak@email.com      | 123     |" + EOL +
-                "| Joe   | joe@email.com        | 234     |" + EOL +
-                "| Bryan | bryan@email.org      | 456     |" + EOL +
-                "| Ni    | ni@email.com         | 654     |" + EOL;
+        String source = "" +
+                "| Aslak | aslak@email.com | 123 |\n" +
+                "| Joe   | joe@email.com   | 234 |\n" +
+                "| Bryan | bryan@email.org | 456 |\n" +
+                "| Ni    | ni@email.com    | 654 |\n";
         return TableParser.parse(source);
     }
 
     private DataTable otherTableWithDeletedAndInserted() {
-        String source =
-                "| Aslak | aslak@email.com      | 123 |" + EOL +
-                "| Doe   | joe@email.com        | 234 |" + EOL +
-                "| Foo   | schnickens@email.net | 789 |" + EOL +
-                "| Bryan | bryan@email.org      | 456 |" + EOL;
+        String source = "" +
+                "| Aslak | aslak@email.com      | 123 |\n" +
+                "| Doe   | joe@email.com        | 234 |\n" +
+                "| Foo   | schnickens@email.net | 789 |\n" +
+                "| Bryan | bryan@email.org      | 456 |\n";
         return TableParser.parse(source);
     }
 
     private DataTable otherTableWithInsertedAtEnd() {
-        String source =
-                "| Aslak | aslak@email.com      | 123 |" + EOL +
-                "| Joe   | joe@email.com        | 234 |" + EOL +
-                "| Bryan | bryan@email.org      | 456 |" + EOL +
-                "| Ni    | ni@email.com         | 654 |" + EOL +
-                "| Doe   | joe@email.com        | 234 |" + EOL +
-                "| Foo   | schnickens@email.net | 789 |" + EOL;
+        String source = "" +
+                "| Aslak | aslak@email.com      | 123 |\n" +
+                "| Joe   | joe@email.com        | 234 |\n" +
+                "| Bryan | bryan@email.org      | 456 |\n" +
+                "| Ni    | ni@email.com         | 654 |\n" +
+                "| Doe   | joe@email.com        | 234 |\n" +
+                "| Foo   | schnickens@email.net | 789 |\n";
         return TableParser.parse(source);
     }
 
     @Test(expected = TableDiffException.class)
     public void shouldFindDifferences() {
         try {
-            new TableDiffer(table(), otherTableWithDeletedAndInserted()).calculateDiffs();
+            DataTable otherTable = otherTableWithDeletedAndInserted();
+            new TableDiffer(table(), otherTable).calculateDiffs();
         } catch (TableDiffException e) {
-            String expected =
-                    "      | Aslak | aslak@email.com      | 123 |" + EOL +
-                    "    - | Joe   | joe@email.com        | 234 |" + EOL +
-                    "    + | Doe   | joe@email.com        | 234 |" + EOL +
-                    "    + | Foo   | schnickens@email.net | 789 |" + EOL +
-                    "      | Bryan | bryan@email.org      | 456 |" + EOL +
-                    "    - | Ni    | ni@email.com         | 654 |" + EOL;
-            assertEquals(expected, pretty(e.getDiffTable()));
+            String expected = "" +
+                    "Tables were not identical:\n" +
+                    "      | Aslak | aslak@email.com      | 123 |\n" +
+                    "    - | Joe   | joe@email.com        | 234 |\n" +
+                    "    + | Doe   | joe@email.com        | 234 |\n" +
+                    "    + | Foo   | schnickens@email.net | 789 |\n" +
+                    "      | Bryan | bryan@email.org      | 456 |\n" +
+                    "    - | Ni    | ni@email.com         | 654 |\n";
+            assertEquals(expected, e.getMessage());
             throw e;
         }
     }
@@ -59,23 +63,61 @@ public class TableDifferTest {
         try {
             new TableDiffer(table(), otherTableWithInsertedAtEnd()).calculateDiffs();
         } catch (TableDiffException e) {
-            String expected =
-                    "      | Aslak | aslak@email.com      | 123 |" + EOL +
-                    "      | Joe   | joe@email.com        | 234 |" + EOL +
-                    "      | Bryan | bryan@email.org      | 456 |" + EOL +
-                    "      | Ni    | ni@email.com         | 654 |" + EOL +
-                    "    + | Doe   | joe@email.com        | 234 |" + EOL +
-                    "    + | Foo   | schnickens@email.net | 789 |" + EOL;
-            assertEquals(expected, pretty(e.getDiffTable()));
+            String expected = "" +
+                    "Tables were not identical:\n" +
+                    "      | Aslak | aslak@email.com      | 123 |\n" +
+                    "      | Joe   | joe@email.com        | 234 |\n" +
+                    "      | Bryan | bryan@email.org      | 456 |\n" +
+                    "      | Ni    | ni@email.com         | 654 |\n" +
+                    "    + | Doe   | joe@email.com        | 234 |\n" +
+                    "    + | Foo   | schnickens@email.net | 789 |\n";
+            assertEquals(expected, e.getMessage());
             throw e;
         }
     }
 
-    private String pretty(DataTable table) {
-        StringBuilder result = new StringBuilder();
-        PrettyFormatter pf = new PrettyFormatter(result, true, false);
-        pf.table(table.getGherkinRows());
-        pf.eof();
-        return result.toString();
+    @Test
+    public void considers_same_table_as_equal() {
+        table().diff(table().raw());
+    }
+
+    @Test(expected = TableDiffException.class)
+    public void shouldFindNewLinesAtEndWhenUsingDiff() {
+        try {
+            List<List<String>> other = otherTableWithInsertedAtEnd().raw();
+            table().diff(other);
+        } catch (TableDiffException e) {
+            String expected = "" +
+                    "Tables were not identical:\n" +
+                    "      | Aslak | aslak@email.com      | 123 |\n" +
+                    "      | Joe   | joe@email.com        | 234 |\n" +
+                    "      | Bryan | bryan@email.org      | 456 |\n" +
+                    "      | Ni    | ni@email.com         | 654 |\n" +
+                    "    + | Doe   | joe@email.com        | 234 |\n" +
+                    "    + | Foo   | schnickens@email.net | 789 |\n";
+            assertEquals(expected, e.getMessage());
+            throw e;
+        }
+    }
+
+    @Test(expected = TableDiffException.class)
+    public void should_not_fail_with_out_of_memory() {
+        DataTable expected = TableParser.parse("" +
+                "| I'm going to work |\n");
+
+        List<List<String>> actual = new ArrayList<List<String>>();
+
+        actual.add(asList("I just woke up"));
+        actual.add(asList("I'm going to work"));
+
+        try {
+            expected.diff(actual);
+        } catch (TableDiffException e) {
+            String expectedDiff = "" +
+                    "Tables were not identical:\n" +
+                    "    + | I just woke up |\n";
+            assertEquals(expectedDiff, e.getMessage());
+            throw e;
+        }
     }
 }

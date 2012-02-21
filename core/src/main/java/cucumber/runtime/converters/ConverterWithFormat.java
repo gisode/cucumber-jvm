@@ -18,7 +18,7 @@ public abstract class ConverterWithFormat<T> implements SingleValueConverter {
     }
 
     public T fromString(String string) {
-        if(string == null) {
+        if (string == null) {
             return null;
         }
         for (Format format : getFormats()) {
@@ -56,7 +56,7 @@ public abstract class ConverterWithFormat<T> implements SingleValueConverter {
 
     @Override
     public String toString(Object obj) {
-        throw new UnsupportedOperationException();
+        return getFormats().get(0).format(obj);
     }
 
     @Override

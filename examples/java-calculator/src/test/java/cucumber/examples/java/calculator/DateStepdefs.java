@@ -1,15 +1,15 @@
 package cucumber.examples.java.calculator;
 
-import java.util.Date;
-
-import cucumber.annotation.DateFormat;
+import cucumber.DateFormat;
 import cucumber.annotation.en.Given;
 import cucumber.annotation.en.Then;
 import cucumber.annotation.en.When;
-import static org.junit.Assert.*;
+
+import java.util.Date;
+
+import static org.junit.Assert.assertEquals;
 
 public class DateStepdefs {
-
     private String result;
     private DateCalculator calculator;
 

@@ -1,41 +1,104 @@
 package cucumber.runtime.groovy;
 
-import cucumber.resources.Consumer;
-import cucumber.resources.Resource;
-import cucumber.resources.Resources;
+import cucumber.io.ClasspathResourceLoader;
+import cucumber.io.Resource;
+import cucumber.io.ResourceLoader;
 import cucumber.runtime.Backend;
-import cucumber.runtime.World;
+import cucumber.runtime.CucumberException;
+import cucumber.runtime.Glue;
+import cucumber.runtime.UnreportedStepExecutor;
+import cucumber.runtime.snippets.SnippetGenerator;
 import gherkin.TagExpression;
 import gherkin.formatter.model.Step;
 import groovy.lang.Binding;
 import groovy.lang.Closure;
 import groovy.lang.GroovyShell;
+import groovy.lang.Script;
+import org.codehaus.groovy.runtime.DefaultGroovyMethods;
 
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Pattern;
+
 
 public class GroovyBackend implements Backend {
     static GroovyBackend instance;
+    private final Set<Class> scripts = new HashSet<Class>();
+    private final SnippetGenerator snippetGenerator = new SnippetGenerator(new GroovySnippet());
+    private final ResourceLoader resourceLoader;
     private final GroovyShell shell;
+    private final ClasspathResourceLoader classpathResourceLoader;
+
     private Closure worldClosure;
     private Object groovyWorld;
-    private World world;
+    private Glue glue;
 
-    public GroovyBackend() {
+    public GroovyBackend(ResourceLoader resourceLoader) {
+        this(new GroovyShell(), resourceLoader);
+    }
+
+    public GroovyBackend(GroovyShell shell, ResourceLoader resourceLoader) {
+        this.resourceLoader = resourceLoader;
+        this.shell = shell;
         instance = this;
-        shell = new GroovyShell(new Binding());
+        classpathResourceLoader = new ClasspathResourceLoader(shell.getClassLoader());
     }
 
     @Override
-    public void buildWorld(List<String> gluePaths, World world) {
-        this.world = world;
+    public void loadGlue(Glue glue, List<String> gluePaths) {
+        this.glue = glue;
+        final Binding context = shell.getContext();
+
         for (String gluePath : gluePaths) {
-            Resources.scan(gluePath.replace('.', '/'), ".groovy", new Consumer() {
-                public void consume(Resource resource) {
-                    shell.evaluate(resource.getString(), resource.getPath());
+            // Load sources
+            for (Resource resource : resourceLoader.resources(gluePath, ".groovy")) {
+                Script script = parse(resource);
+                runIfScript(context, script);
+            }
+            // Load compiled scripts
+            String packageName = gluePath.replace('/', '.').replace('\\', '.'); // Sometimes the gluePath will be a path, not a package
+            for (Class<? extends Script> glueClass : classpathResourceLoader.getDescendants(Script.class, packageName)) {
+                try {
+                    Script script = glueClass.getConstructor(Binding.class).newInstance(context);
+                    runIfScript(context, script);
+                } catch (Exception e) {
+                    throw new CucumberException(e);
                 }
-            });
+            }
         }
+    }
+
+    private void runIfScript(Binding context, Script script) {
+        Class scriptClass = script.getMetaClass().getTheClass();
+        if (isScript(script) && !scripts.contains(scriptClass)) {
+            script.setBinding(context);
+            script.run();
+            scripts.add(scriptClass);
+        }
+    }
+
+    @Override
+    public void setUnreportedStepExecutor(UnreportedStepExecutor executor) {
+        //Not used yet
+    }
+
+    @Override
+    public void buildWorld() {
+    }
+
+    private Script parse(Resource resource) {
+        try {
+            return shell.parse(new InputStreamReader(resource.getInputStream()), resource.getPath());
+        } catch (IOException e) {
+            throw new CucumberException(e);
+        }
+    }
+
+    private boolean isScript(Script script) {
+        return DefaultGroovyMethods.asBoolean(script.getMetaClass().respondsTo(script, "main"));
     }
 
     @Override
@@ -45,11 +108,11 @@ public class GroovyBackend implements Backend {
 
     @Override
     public String getSnippet(Step step) {
-        return new GroovySnippetGenerator(step).getSnippet();
+        return snippetGenerator.getSnippet(step);
     }
 
     public void addStepDefinition(Pattern regexp, Closure body) {
-        world.addStepDefinition(new GroovyStepDefinition(regexp, body, stepDefLocation(), instance));
+        glue.addStepDefinition(new GroovyStepDefinition(regexp, body, stepDefLocation(), instance));
     }
 
     public void registerWorld(Closure closure) {
@@ -57,16 +120,17 @@ public class GroovyBackend implements Backend {
     }
 
     void addBeforeHook(TagExpression tagExpression, Closure body) {
-        world.addBeforeHook(new GroovyHookDefinition(body, tagExpression, instance));
+        glue.addBeforeHook(new GroovyHookDefinition(body, tagExpression, instance));
     }
-    
+
     public void addAfterHook(TagExpression tagExpression, Closure body) {
-        world.addBeforeHook(new GroovyHookDefinition(body, tagExpression, instance));
+        glue.addAfterHook(new GroovyHookDefinition(body, tagExpression, instance));
     }
 
     public void invoke(Closure body, Object[] args) {
         body.setDelegate(getGroovyWorld());
         body.call(args);
+        System.out.println("DONE");
     }
 
     private Object getGroovyWorld() {
@@ -80,10 +144,14 @@ public class GroovyBackend implements Backend {
         Throwable t = new Throwable();
         StackTraceElement[] stackTraceElements = t.getStackTrace();
         for (StackTraceElement stackTraceElement : stackTraceElements) {
-            if (stackTraceElement.getFileName().endsWith(".groovy")) {
+            if (isGroovyFile(stackTraceElement.getFileName())) {
                 return stackTraceElement;
             }
         }
         throw new RuntimeException("Couldn't find location for step definition");
+    }
+
+    private static boolean isGroovyFile(String fileName) {
+        return fileName != null && fileName.endsWith(".groovy");
     }
 }

@@ -1,41 +1,69 @@
 package cucumber.runtime.clojure;
 
-import clojure.lang.AFunction;
+import clojure.lang.Compiler;
+import clojure.lang.IFn;
 import clojure.lang.RT;
-import cucumber.resources.Consumer;
-import cucumber.resources.Resource;
-import cucumber.resources.Resources;
+import cucumber.io.Resource;
+import cucumber.io.ResourceLoader;
 import cucumber.runtime.Backend;
 import cucumber.runtime.CucumberException;
-import cucumber.runtime.World;
+import cucumber.runtime.Glue;
+import cucumber.runtime.UnreportedStepExecutor;
+import cucumber.runtime.snippets.SnippetGenerator;
 import gherkin.formatter.model.Step;
 
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.List;
 import java.util.regex.Pattern;
 
 public class ClojureBackend implements Backend {
     private static ClojureBackend instance;
-    private World world;
+    private final SnippetGenerator snippetGenerator = new SnippetGenerator(new ClojureSnippet());
+    private final ResourceLoader resourceLoader;
+    private Glue glue;
 
-    public ClojureBackend() throws ClassNotFoundException, IOException {
+    public ClojureBackend(ResourceLoader resourceLoader) {
+        this.resourceLoader = resourceLoader;
         instance = this;
-        RT.load("cucumber/runtime/clojure/dsl");
+        loadScript("cucumber/runtime/clojure/dsl");
     }
 
     @Override
-    public void buildWorld(List<String> gluePaths, World world) {
-        this.world = world;
+    public void loadGlue(Glue glue, List<String> gluePaths) {
+        this.glue = glue;
         for (String gluePath : gluePaths) {
-            Resources.scan(gluePath.replace('.', '/'), ".clj", new Consumer() {
-                public void consume(Resource resource) {
-                    try {
-                        RT.load(resource.getPath().replaceAll(".clj$", ""));
-                    } catch (Exception e) {
-                        throw new CucumberException("Failed to parse file " + resource.getPath(), e);
-                    }
-                }
-            });
+            for (Resource resource : resourceLoader.resources(gluePath, ".clj")) {
+                loadScript(resource);
+            }
+        }
+
+    }
+
+    @Override
+    public void setUnreportedStepExecutor(UnreportedStepExecutor executor) {
+        //Not used yet
+    }
+
+    @Override
+    public void buildWorld() {
+    }
+
+    private void loadScript(String path) {
+        try {
+            RT.load(path.replaceAll(".clj$", ""), true);
+        } catch (IOException e) {
+            throw new CucumberException(e);
+        } catch (ClassNotFoundException e) {
+            throw new CucumberException(e);
+        }
+    }
+
+    private void loadScript(Resource resource) {
+        try {
+            Compiler.load(new InputStreamReader(resource.getInputStream(), "UTF-8"), resource.getPath(), resource.getPath());
+        } catch (IOException e) {
+            throw new CucumberException(e);
         }
     }
 
@@ -45,7 +73,7 @@ public class ClojureBackend implements Backend {
 
     @Override
     public String getSnippet(Step step) {
-        return new ClojureSnippetGenerator(step).getSnippet();
+        return snippetGenerator.getSnippet(step);
     }
 
     private StackTraceElement stepDefLocation(String interpreterClassName, String interpreterMethodName) {
@@ -60,16 +88,16 @@ public class ClojureBackend implements Backend {
         throw new CucumberException("Couldn't find location for step definition");
     }
 
-    public static void addStepDefinition(Pattern regexp, AFunction body) {
+    public static void addStepDefinition(Pattern regexp, IFn body) {
         StackTraceElement location = instance.stepDefLocation("clojure.lang.Compiler", "eval");
-        instance.world.addStepDefinition(new ClojureStepDefinition(regexp, body, location));
+        instance.glue.addStepDefinition(new ClojureStepDefinition(regexp, body, location));
     }
 
-    public static void addBeforeHook(AFunction body) {
-        instance.world.addBeforeHook(new ClojureHookDefinition(new String[0], body));
+    public static void addBeforeHook(IFn body) {
+        instance.glue.addBeforeHook(new ClojureHookDefinition(new String[0], body));
     }
 
-    public static void addAfterHook(AFunction body) {
-        instance.world.addAfterHook(new ClojureHookDefinition(new String[0], body));
+    public static void addAfterHook(IFn body) {
+        instance.glue.addAfterHook(new ClojureHookDefinition(new String[0], body));
     }
 }

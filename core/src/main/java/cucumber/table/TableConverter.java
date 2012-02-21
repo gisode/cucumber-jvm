@@ -1,12 +1,21 @@
 package cucumber.table;
 
 import com.thoughtworks.xstream.XStream;
+import com.thoughtworks.xstream.converters.Converter;
+import com.thoughtworks.xstream.converters.SingleValueConverter;
 import com.thoughtworks.xstream.io.HierarchicalStreamReader;
 import cucumber.runtime.CucumberException;
+import cucumber.table.xstream.DataTableWriter;
+import cucumber.table.xstream.ListOfListOfSingleValueReader;
+import cucumber.table.xstream.ListOfListOfSingleValueWriter;
+import cucumber.table.xstream.ListOfMapReader;
+import cucumber.table.xstream.ListOfObjectReader;
+import cucumber.table.xstream.ListOfObjectWriter;
 import gherkin.util.Mapper;
 
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -19,27 +28,93 @@ public class TableConverter {
         this.xStream = xStream;
     }
 
-    public <T> List<T> convert(Type itemType, List<String> attributeNames, List<List<String>> attributeValues) {
+    /**
+     * Converts a DataTable to a List of objects.
+     */
+    public <T> List<T> toList(Type itemType, DataTable dataTable) {
         HierarchicalStreamReader reader;
         ensureNotNonGenericMap(itemType);
-        if (isMapOfStringToStringAssignable(itemType)) {
-            reader = new XStreamMapReader(attributeNames, attributeValues);
+
+        Class listOfListType = listOfListType(itemType);
+        if (listOfListType != null) {
+            reader = new ListOfListOfSingleValueReader(listOfListType, dataTable.cells(0));
+        } else if (isMapOfStringToStringAssignable(itemType)) {
+            reader = new ListOfMapReader(dataTable.topCells(), dataTable.cells(1));
         } else {
-            final StringConverter mapper = new CamelCaseStringConverter();
-            attributeNames = map(attributeNames, new Mapper<String, String>() {
-                @Override
-                public String map(String attributeName) {
-                    return mapper.map(attributeName);
-                }
-            });
-            reader = new XStreamObjectReader(itemType, attributeNames, attributeValues);
+            reader = new ListOfObjectReader(itemType, convertedAttributeNames(dataTable), dataTable.cells(1));
         }
         return (List) xStream.unmarshal(reader);
+    }
+
+    /**
+     * Converts a List of objects to a DataTable.
+     *
+     * @param objects the objects to convers
+     * @return a DataTable
+     */
+    public DataTable toTable(List<?> objects) {
+        DataTableWriter writer;
+        if (isListOfListOfSingleValue(objects)) {
+            objects = wrapLists((List<List<?>>) objects);
+            writer = new ListOfListOfSingleValueWriter(this);
+        } else {
+            writer = new ListOfObjectWriter(this);
+        }
+        xStream.marshal(objects, writer);
+        return writer.getDataTable();
+    }
+
+    // This is a hack to prevent XStream from outputting weird-looking "XML" for Arrays.asList() - created lists.
+    private List<List<?>> wrapLists(List<List<?>> lists) {
+        List<List<?>> result = new ArrayList<List<?>>();
+        for (List<?> list : lists) {
+            List<?> resultList = new ArrayList<Object>(list);
+            result.add(resultList);
+        }
+        return result;
+    }
+
+    // We have to convert attribute names to valid field names.
+    private List<String> convertedAttributeNames(DataTable dataTable) {
+        final StringConverter mapper = new CamelCaseStringConverter();
+        return map(dataTable.topCells(), new Mapper<String, String>() {
+            @Override
+            public String map(String attributeName) {
+                return mapper.map(attributeName);
+            }
+        });
+    }
+
+    private boolean isListOfListOfSingleValue(List<?> objects) {
+        if (objects.size() > 0 && objects.get(0) instanceof List) {
+            List firstList = (List) objects.get(0);
+            if (firstList.size() > 0 && isSingleValue(firstList.get(0).getClass())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void ensureNotNonGenericMap(Type type) {
         if (type instanceof Class && Map.class.isAssignableFrom((Class<?>) type)) {
             throw new CucumberException("Tables can only be transformed to List<Map<String,String>> or List<Map<String,Object>>. You have to declare generic types.");
+        }
+    }
+
+    private Class listOfListType(Type type) {
+        if (type instanceof ParameterizedType) {
+            ParameterizedType parameterizedType = (ParameterizedType) type;
+            Type rawType = parameterizedType.getRawType();
+            if (rawType instanceof Class && List.class.isAssignableFrom((Class) rawType)) {
+                Type listType = parameterizedType.getActualTypeArguments()[0];
+                if (listType instanceof Class) {
+                    return (Class) listType;
+                }
+                return null;
+            }
+            return null;
+        } else {
+            return null;
         }
     }
 
@@ -64,4 +139,10 @@ public class TableConverter {
             return false;
         }
     }
+
+    private boolean isSingleValue(Class<?> type) {
+        Converter converter = xStream.getConverterLookup().lookupConverterForType(type);
+        return converter instanceof SingleValueConverter;
+    }
+
 }

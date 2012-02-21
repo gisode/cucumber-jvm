@@ -1,11 +1,20 @@
+# IDE working files
+*.iws
+*.ipr
+*.iml
+.idea/
 .settings
 .project
 .classpath
-*.iws
-*.iml
-*.ipr
-target
+
+
+# Build directories
+distrib/
+target/
+tmp/
+
+# Build & test droppings
+report.js
 chromedriver.log
-Gemfile.lock
 .scala_dependencies
-tmp
+nexus.properties

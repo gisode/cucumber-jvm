@@ -1,33 +1,35 @@
 package cucumber.runtime.clojure;
 
-import clojure.lang.AFunction;
+import clojure.lang.IFn;
 import cucumber.runtime.JdkPatternArgumentMatcher;
 import cucumber.runtime.ParameterType;
 import cucumber.runtime.StepDefinition;
 import cucumber.runtime.Utils;
+import gherkin.I18n;
 import gherkin.formatter.Argument;
 import gherkin.formatter.model.Step;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.Collection;
 import java.util.List;
 import java.util.regex.Pattern;
 
 public class ClojureStepDefinition implements StepDefinition {
     private final Pattern pattern;
-    private final AFunction closure;
+    private final IFn closure;
     private StackTraceElement location;
 
-    public ClojureStepDefinition(Pattern pattern, AFunction closure, StackTraceElement location) {
+    public ClojureStepDefinition(Pattern pattern, IFn closure, StackTraceElement location) {
         this.pattern = pattern;
         this.closure = closure;
         this.location = location;
     }
 
-    // Clojure's AFunction.invokeWithArgs doesn't take varargs :-/
+    // Clojure's IFn.invoke doesn't take varargs :-/
     private Method lookupInvokeMethod(Object[] args) throws NoSuchMethodException {
-        return AFunction.class.getMethod("invoke", (Class<?>[]) Utils.listOf(args.length, Object.class).toArray());
+        List<Class<Object>> classes = Utils.listOf(args.length, Object.class);
+        Class<?>[] params = classes.toArray(new Class<?>[classes.size()]);
+        return IFn.class.getMethod("invoke", params);
     }
 
     public List<Argument> matchedArguments(Step step) {
@@ -42,7 +44,7 @@ public class ClojureStepDefinition implements StepDefinition {
         return null;
     }
 
-    public void execute(Object[] args) throws Throwable {
+    public void execute(I18n i18n, Object[] args) throws Throwable {
         Method functionInvoke = lookupInvokeMethod(args);
         try {
             functionInvoke.invoke(closure, args);

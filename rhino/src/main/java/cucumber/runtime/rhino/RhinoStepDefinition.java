@@ -3,6 +3,7 @@ package cucumber.runtime.rhino;
 import cucumber.runtime.ParameterType;
 import cucumber.runtime.StepDefinition;
 import cucumber.runtime.Utils;
+import gherkin.I18n;
 import gherkin.formatter.Argument;
 import gherkin.formatter.model.Step;
 import org.mozilla.javascript.Context;
@@ -12,7 +13,6 @@ import org.mozilla.javascript.Scriptable;
 import org.mozilla.javascript.regexp.NativeRegExp;
 import org.mozilla.javascript.tools.shell.Global;
 
-import java.util.Collection;
 import java.util.List;
 
 public class RhinoStepDefinition implements StepDefinition {
@@ -47,7 +47,7 @@ public class RhinoStepDefinition implements StepDefinition {
         return Utils.listOf(bodyFunc.getArity(), new ParameterType(String.class, null));
     }
 
-    public void execute(Object[] args) throws Throwable {
+    public void execute(I18n i18n, Object[] args) throws Throwable {
         bodyFunc.call(cx, scope, scope, args);
     }
 

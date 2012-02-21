@@ -1,9 +1,9 @@
 package cucumber.runtime;
 
+import gherkin.I18n;
 import gherkin.formatter.Argument;
 import gherkin.formatter.model.Step;
 
-import java.util.Collection;
 import java.util.List;
 
 public interface StepDefinition {
@@ -34,7 +34,7 @@ public interface StepDefinition {
      * Invokes the step definition. The method should raise a Throwable
      * if the invocation fails, which will cause the step to fail.
      */
-    void execute(Object[] args) throws Throwable;
+    void execute(I18n i18n, Object[] args) throws Throwable;
 
     /**
      * Return true if this matches the location. This is used to filter

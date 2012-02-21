@@ -1,17 +1,21 @@
 package cucumber.runtime.java;
 
-import cucumber.annotation.DateFormat;
+import cucumber.DateFormat;
 import cucumber.annotation.Pending;
-import cucumber.runtime.*;
-import gherkin.TagExpression;
+import cucumber.runtime.CucumberException;
+import cucumber.runtime.JdkPatternArgumentMatcher;
+import cucumber.runtime.ParameterType;
+import cucumber.runtime.PendingException;
+import cucumber.runtime.StepDefinition;
+import gherkin.I18n;
 import gherkin.formatter.Argument;
 import gherkin.formatter.model.Step;
 
 import java.lang.annotation.Annotation;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.regex.Pattern;
 
@@ -32,7 +36,7 @@ public class JavaStepDefinition implements StepDefinition {
         this.objectFactory = objectFactory;
     }
 
-    public void execute(Object[] args) throws Throwable {
+    public void execute(I18n i18n, Object[] args) throws Throwable {
         if (method.isAnnotationPresent(Pending.class)) {
             throw new PendingException(method.getAnnotation(Pending.class).value());
         }
@@ -43,6 +47,8 @@ public class JavaStepDefinition implements StepDefinition {
         } catch (IllegalArgumentException e) {
             // Can happen if stepdef signature doesn't match args
             throw new CucumberException("Can't invoke " + new MethodFormat().format(method) + " with " + asList(args));
+        } catch (InvocationTargetException t) {
+            throw t.getTargetException();
         }
     }
 
@@ -55,20 +61,7 @@ public class JavaStepDefinition implements StepDefinition {
     }
 
     public List<ParameterType> getParameterTypes() {
-        List<ParameterType> result = new ArrayList<ParameterType>();
-        Type[] genericParameterTypes = method.getGenericParameterTypes();
-        Annotation[][] annotations = method.getParameterAnnotations();
-        for (int i = 0; i < genericParameterTypes.length; i++) {
-            String dateFormat = null;
-            for (Annotation annotation : annotations[i]) {
-                if (annotation instanceof DateFormat) {
-                    dateFormat = ((DateFormat) annotation).value();
-                    break;
-                }
-            }
-            result.add(new ParameterType(genericParameterTypes[i], dateFormat));
-        }
-        return result;
+        return ParameterType.fromMethod(method);
     }
 
     public boolean isDefinedAt(StackTraceElement e) {
