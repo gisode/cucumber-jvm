@@ -53,13 +53,10 @@ public class World {
 
     public void dispose() {
         Collections.sort(afterHooks, new HookComparator(false));
-        try {
-            for (HookDefinition hook : afterHooks) {
-                runHookMaybe(hook, scenarioResult);
-            }
-        } finally {
-            runtime.disposeWorlds();
+        for (HookDefinition hook : afterHooks) {
+            runHookMaybe(hook, scenarioResult);
         }
+        runtime.disposeWorlds();
     }
 
     private void runHookMaybe(HookDefinition hook, ScenarioResult scenarioResult) {
